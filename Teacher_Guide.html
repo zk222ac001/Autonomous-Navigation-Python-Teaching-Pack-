@@ -1,0 +1,178 @@
+<!DOCTYPE html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Autonomous Navigation with Python — Teacher Guide</title>
+<style>
+body{margin:0;background:#edf2f6;color:#203047;font:17px/1.65 system-ui,sans-serif}main{max-width:1000px;margin:auto;background:white;padding:48px 60px}h1{font-size:44px;line-height:1.12;color:#12324b}h2{border-top:3px solid #12847c;padding-top:24px;margin-top:50px;line-height:1.3}h3{color:#136e69;margin-top:30px}p,li{max-width:86ch}table{border-collapse:collapse;width:100%;margin:20px 0;font-size:15px}td,th{border:1px solid #ccd6df;padding:10px;text-align:left;vertical-align:top}th{background:#e4f2ef}pre{padding:20px;background:#152b40;color:#eff6ff;overflow:auto;font-size:14px;line-height:1.5}code{font-family:Consolas,monospace}.note{border-left:5px solid #d79021;background:#fff5df;padding:16px 22px}.lead{font-size:21px;color:#426077}.tag{color:#13877d;letter-spacing:2px;font-size:14px;font-weight:bold}.grid{width:auto;text-align:center}.grid td,.grid th{width:38px;height:30px;text-align:center}.blocked{background:#25364a;color:white}.route{background:#cceee7}a{color:#096a9c}@media print{body{background:white;font-size:11pt}main{padding:0;max-width:none}h1{font-size:30pt}h2{break-before:page;margin-top:0}h3{break-after:avoid}pre,table,.note{break-inside:avoid}pre{white-space:pre-wrap;color:black;background:#f1f4f6}a{color:inherit}}
+</style><main>
+<p class="tag">TEACHER EDITION • PYTHON • BEGINNER ROBOTICS</p>
+<h1>Teach a robot to find<br>and follow a route</h1>
+<p class="lead">Three 90-minute lessons, four runnable demonstrations, a student lab and a homework project.</p>
+<p><b>Teaching approach:</b> start with a small delivery robot moving across a classroom. Students first represent the room, then plan a route, then simulate movement. Use the same map throughout so each new idea builds on something familiar.</p>
+<p><b>Prerequisites:</b> variables, comparisons, loops, functions, lists and basic tuples. Explain dictionaries before A*. No robotics experience is assumed. The examples use the Python standard library; the optional animation uses Tkinter.</p>
+<div class="note"><b>Your first preparation step:</b> extract the pack, open a terminal in its folder, run <code>python 01_grid_basics.py</code>, then <code>python 02_astar_demo.py</code>. Open the simulation with <code>python 03_robot_simulation.py</code>. Practice changing one free cell to an obstacle in <code>navigation.py</code>. You now have the first classroom demonstration.</div>
+<h3>What students should be able to do</h3>
+<ul><li>Explain the roles of a map, localization, planning and control.</li><li>Represent free space and obstacles using a two-dimensional Python list.</li><li>Calculate and explain A*'s g, h and f scores.</li><li>Read, modify and test a working A* implementation.</li><li>Convert grid cells to waypoints and simulate following them.</li><li>Explain the gap between an ideal simulation and a real robot.</li></ul>
+<h3>Teaching schedule</h3>
+<table><tr><th>Lesson</th><th>Minute-by-minute plan</th><th>Evidence of learning</th></tr>
+<tr><td>1 • Navigation and grid maps</td><td>0–10 delivery challenge; 10–25 navigation concepts; 25–40 grid representation; 40–45 pause; 45–60 Python demonstration; 60–80 neighbor exercise; 80–90 exit questions.</td><td>Student identifies legal neighbors and explains coordinates.</td></tr>
+<tr><td>2 • A* theory and Python</td><td>0–10 recap; 10–30 g/h/f and hand trace; 30–45 search pseudocode; 45–50 pause; 50–70 code walkthrough; 70–85 map experiments; 85–90 exit questions.</td><td>Student explains why a candidate is selected and verifies path cost.</td></tr>
+<tr><td>3 • Control, lab and homework</td><td>0–15 route versus movement; 15–30 controller walkthrough; 30–40 animation; 40–45 pause; 45–75 lab; 75–85 peer explanation; 85–90 homework briefing.</td><td>Student demonstrates a route, successful following and an unreachable case.</td></tr></table>
+<p>If students are new to Python, add a preparation lesson. The 30-minute lesson-3 lab is consolidation; reserve another 45–60 minutes for slower groups or the extensions.</p>
+<h2>Lesson 1 — Intro to autonomous navigation</h2>
+<h3>1. Begin with a question, not an algorithm</h3>
+<p><b>Say:</b> “Imagine a robot delivering a book from the classroom door to my desk. There are tables in the way. What does the robot need to know?” Give students two minutes in pairs before collecting answers.</p>
+<table><tr><th>Question</th><th>Navigation component</th><th>Our classroom assumption</th></tr>
+<tr><td>What is around me?</td><td>Perception and mapping</td><td>We supply the obstacle map.</td></tr>
+<tr><td>Where am I?</td><td>Localization</td><td>We know the simulated position exactly.</td></tr>
+<tr><td>Where should I go?</td><td>Path planning</td><td>A* finds grid cells from start to goal.</td></tr>
+<tr><td>How do I move there?</td><td>Control</td><td>A simulated robot turns, then drives toward each waypoint.</td></tr></table>
+<p>Autonomous navigation means making movement decisions toward a goal using available information. A* is a search algorithm; it is not a trained neural network. It does not need a dataset or an AI API.</p>
+<p><b>Ask:</b> “If a chair moves after planning, does the old route automatically change?” Expected answer: no. A system must detect the change, update its map and replan. Our supplied demo uses a static map.</p>
+<h3>2. Grid maps and pathfinding basics</h3>
+<p>Divide a room into cells. In this simplified map, <code>0</code> means free and <code>1</code> means blocked. Each move goes up, down, left or right and costs one unit. Diagonal moves are not allowed.</p>
+<pre>grid = [
+    [0, 0, 0],
+    [0, 1, 0],
+    [0, 0, 0],
+]
+position = (0, 0)       # (row, column)
+print(grid[1][1])      # 1: the central cell is blocked</pre>
+<p>Indexing begins at zero. Rows increase downward on the displayed map; columns increase rightward. A tuple such as <code>(2, 3)</code> is one cell, not a physical measurement. Always access it as <code>grid[row][column]</code>.</p>
+<table class="grid"><tr><th>r \ c</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+<tr><th>0</th><td class="route">S</td><td class="route">→</td><td class="route">→</td><td class="route">→</td><td class="route">→</td><td class="route">↓</td></tr>
+<tr><th>1</th><td>0</td><td class="blocked">1</td><td class="blocked">1</td><td class="blocked">1</td><td class="blocked">1</td><td class="route">↓</td></tr>
+<tr><th>2</th><td>0</td><td>0</td><td>0</td><td>0</td><td class="blocked">1</td><td class="route">↓</td></tr>
+<tr><th>3</th><td class="blocked">1</td><td class="blocked">1</td><td>0</td><td>0</td><td class="blocked">1</td><td class="route">↓</td></tr>
+<tr><th>4</th><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td class="route">G</td></tr></table>
+<p>This is the map in <code>navigation.py</code>. The coloured cells illustrate one shortest route, not necessarily the one returned under every tie-breaking rule. It has 10 cells and 9 moves. Explain that path cost counts transitions, so <code>len(path) - 1</code> is the move count.</p>
+<h3>3. Live coding: valid neighbors</h3>
+<pre>row, col = (0, 0)
+for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+    nr, nc = row + dr, col + dc
+    if 0 &lt;= nr &lt; len(grid) and 0 &lt;= nc &lt; len(grid[0]):
+        if grid[nr][nc] == 0:
+            print((nr, nc))</pre>
+<p>Ask students to predict the output before running. Explain bounds before access: Python permits negative indexing, so forgetting bounds can accidentally connect opposite edges of the map.</p>
+<p><b>Exercise:</b> complete <code>student_neighbors</code> in <code>student_tasks.py</code>. Trace the four directions on paper first. Test a corner, an edge and a cell next to obstacles.</p>
+<p><b>Exit questions:</b> What does <code>grid[2][1]</code> mean? Why must an obstacle not be a neighbor? Which component tells the robot where it is?</p>
+<h2>Lesson 2 — A* algorithm theory</h2>
+<h3>4. Explain the three scores</h3>
+<p><b>Say:</b> “For each candidate cell, we combine how far we have already travelled with an optimistic estimate of how far remains.”</p>
+<table><tr><th>Score</th><th>Meaning</th><th>Example</th></tr>
+<tr><td><code>g(n)</code></td><td>Best known cost from start to candidate n.</td><td>Three moves so far gives g = 3.</td></tr>
+<tr><td><code>h(n)</code></td><td>Estimated cost from n to the goal.</td><td>Two rows and four columns away gives h = 6.</td></tr>
+<tr><td><code>f(n) = g(n) + h(n)</code></td><td>Priority used to select the next candidate.</td><td>3 + 6 = 9.</td></tr></table>
+<p>The estimate used here is <b>Manhattan distance</b>: <code>abs(row - goal_row) + abs(col - goal_col)</code>. It ignores obstacles. For four-direction moves of cost one, obstacles may force a longer route but cannot make it shorter than this estimate.</p>
+<p>A heuristic is <b>admissible</b> if it never overestimates the true minimum remaining cost. It is <b>consistent</b> if <code>h(n) ≤ cost(n,m) + h(m)</code> for each edge, with zero at the goal. Manhattan distance satisfies both for this grid model. These properties justify shortest-path results; an arbitrary estimate does not.</p>
+<div class="note">Changing the movement rules changes the heuristic. If diagonal steps also cost one, Manhattan distance can overestimate: (0,0) to (1,1) takes one diagonal step but Manhattan gives two. Keep the first lab strictly four-directional.</div>
+<h3>5. A worked hand trace</h3>
+<p>Use the 3 × 3 map above: start (0,0), goal (2,2), centre blocked. Our code generates neighbors in the order up, down, left, right and breaks equal f scores by insertion order. All the following candidates have f = 4; equal scores are common.</p>
+<table><tr><th>Step</th><th>Cell removed from frontier</th><th>g</th><th>h</th><th>f</th><th>New candidates / action</th></tr>
+<tr><td>1</td><td>(0,0)</td><td>0</td><td>4</td><td>4</td><td>(1,0), (0,1)</td></tr>
+<tr><td>2</td><td>(1,0)</td><td>1</td><td>3</td><td>4</td><td>(2,0)</td></tr>
+<tr><td>3</td><td>(0,1)</td><td>1</td><td>3</td><td>4</td><td>(0,2)</td></tr>
+<tr><td>4</td><td>(2,0)</td><td>2</td><td>2</td><td>4</td><td>(2,1)</td></tr>
+<tr><td>5</td><td>(0,2)</td><td>2</td><td>2</td><td>4</td><td>(1,2)</td></tr>
+<tr><td>6</td><td>(2,1)</td><td>3</td><td>1</td><td>4</td><td>(2,2), the goal, is added.</td></tr>
+<tr><td>7</td><td>(1,2)</td><td>3</td><td>1</td><td>4</td><td>Equal-cost alternative does not replace the goal's parent.</td></tr>
+<tr><td>8</td><td>(2,2)</td><td>4</td><td>0</td><td>4</td><td>Goal is removed; reconstruct and return route.</td></tr></table>
+<p>Returned route: <code>(0,0), (1,0), (2,0), (2,1), (2,2)</code>. Ask why the right-hand route is also optimal. Do not claim A* always explores only its final path.</p>
+<h3>6. Search pseudocode</h3>
+<pre>Give the start g = 0 and add it to the frontier.
+While the frontier is not empty:
+    Remove a candidate with the smallest f.
+    Skip it if this is an outdated queue entry.
+    If it is the goal: reconstruct and return its route.
+    For each legal neighbor:
+        new_cost = current cost + 1
+        If this improves the neighbor's best known cost:
+            Record its cost and parent.
+            Add a new entry with f = new_cost + heuristic.
+Return “no route”.</pre>
+<p><b>Key distinction:</b> stop when the goal is removed as the best candidate, rather than merely when it is first encountered. Track parents so that the result is an ordered route, not a collection of visited cells.</p>
+<h3>7. Implementing A* in Python</h3>
+<p>Open <code>navigation.py</code> and explain it in five chunks:</p>
+<ol><li><code>neighbors</code> and <code>manhattan</code> describe the problem.</li><li><code>frontier</code> holds candidates. <code>heapq.heappop</code> selects the smallest priority; the list itself is not a fully sorted list.</li><li><code>g_score</code> stores the cheapest route found so far. <code>came_from</code> maps each cell to its predecessor.</li><li>The loop updates a neighbor only when the new route is cheaper. An updated candidate gets a new queue entry; stale entries are skipped later.</li><li>At the goal, follow parent pointers backward, then reverse the list.</li></ol>
+<p>A heap item is <code>(f_score, sequence_number, g_score, cell)</code>. The sequence number gives stable insertion-order tie-breaking. The saved g value lets the implementation detect outdated entries. Students need not implement a heap themselves.</p>
+<pre>tentative_g = popped_g + 1
+if tentative_g &lt; g_score.get(neighbor, float('inf')):
+    came_from[neighbor] = current
+    g_score[neighbor] = tentative_g
+    f_score = tentative_g + manhattan(neighbor, goal)</pre>
+<p>Explain <code>float('inf')</code> as “no known finite cost yet.” A tuple can be a dictionary key; a list cannot. The supplied functions use tuples consistently.</p>
+<h3>8. Demonstrate, predict, change</h3>
+<p>Run <code>02_astar_demo.py</code>. Ask students to predict what happens if <code>GRID[0][1]</code> becomes 1. Then block both neighbors of the start: <code>GRID[0][1] = 1</code> and <code>GRID[1][0] = 1</code>. The start is valid but disconnected, so the program reports no route.</p>
+<p>Finally run <code>04_compare_search.py</code>. Using h = 0 turns this into uniform-cost search. With all edges costing one, it has breadth-first cost ordering. Compare path cost and expanded cells separately: fewer expansions do not mean a shorter route. A* may tie with uninformed search on some maps.</p>
+<p><b>Exit questions:</b> Calculate f when g = 4 and h = 3. Why does h ignore walls? Why do we store parents? What should the robot do when the frontier empties without finding the goal?</p>
+<h2>Lesson 3 — Robot control for path following</h2>
+<h3>9. From cells to physical waypoints</h3>
+<p>A* returns cells such as (0,0), (0,1), (0,2). A controller needs target positions. Put each target at its cell centre. For N rows and cell width s metres:</p>
+<pre>x = (column + 0.5) * s
+y = (N - row - 0.5) * s</pre>
+<p>Our map has five rows and s = 1 metre, so start (0,0) becomes (0.5,4.5) metres and goal (4,5) becomes (5.5,0.5) metres. World x increases right, world y increases up. Screen y increases downward, so the drawing reverses y again.</p>
+<h3>10. A simple feedback controller</h3>
+<p>The robot state is <code>(x, y, theta)</code>. The angle theta is in radians, measured counterclockwise from the positive x direction. Each update compares the current state to the next waypoint.</p>
+<pre>dx = target_x - x
+dy = target_y - y
+desired_heading = atan2(dy, dx)
+heading_error = wrap_angle(desired_heading - theta)
+angular_speed = clamp(KP * heading_error, -MAX_TURN, MAX_TURN)</pre>
+<p><code>atan2</code> uses both coordinate differences and handles all four quadrants. Wrapping the heading error into [−π, π) makes the robot turn through the shorter angular difference. Proportional control gives a larger turn command for a larger error, within the speed limit.</p>
+<p>Our ideal controller turns in place until aligned, then moves straight toward the waypoint. It limits the movement to the remaining distance so it cannot step past the target. When it arrives, it selects the next waypoint. After the final waypoint, it stops updating motion.</p>
+<pre>x_next = x + v * cos(theta) * dt
+y_next = y + v * sin(theta) * dt
+theta_next = theta + omega * dt</pre>
+<p>These are the basic discrete kinematic updates. In <code>controller.py</code>, turning uses v = 0 and driving uses omega = 0. Parameters have units: v in m/s, omega in rad/s and dt in seconds. A 0.05-second update means 20 simulation steps per second; GUI scheduling is approximate wall-clock timing.</p>
+<p>Discuss three different concepts: a waypoint defines where to go; a controller computes a command; a physical motor interface applies it. This pack models the first two and does not send motor commands.</p>
+<h3>11. Run the visual demonstration</h3>
+<p>Run <code>03_robot_simulation.py</code>. Blue shows the planned route; pale green shows expanded free cells; dark cells are obstacles; orange is the robot. Start and pause the movement. Ask students to describe what happens at a corner. If a window cannot open, run with <code>--headless</code>.</p>
+<p><b>Experiment:</b> reduce <code>MAX_SPEED</code> in <code>controller.py</code> from 0.8 to 0.4 and rerun. The route remains the same; movement takes more simulated time. Change <code>MAX_TURN</code> to observe turns. Change one parameter at a time.</p>
+<div class="note"><b>Simulation boundary:</b> this is a point robot in a known, static world with perfect position. The drawn circle has no physical footprint. A real robot needs obstacle clearance for its body, localization, sensor updates, motor feedback and a reliable stop mechanism. Do not copy this simulator directly into a motor driver.</div>
+<h3>12. Optional bridge to differential-drive robots</h3>
+<p>For track width L and desired forward speed v and angular speed omega, ideal wheel linear speeds are <code>v_left = v − omega × L/2</code> and <code>v_right = v + omega × L/2</code>. Wheel angular speed is linear speed divided by wheel radius. This is a conceptual extension; the supplied code has no hardware implementation.</p>
+<h2>Lab and homework briefing</h2>
+<h3>Lab — a classroom delivery route</h3>
+<p>Work in pairs. One student predicts and explains; the other edits and runs. Swap roles halfway through.</p>
+<ol><li><b>5 minutes:</b> complete the two functions in <code>student_tasks.py</code> and run its checks. If this was completed in lesson 1, explain your functions to your partner.</li><li><b>8 minutes:</b> create a 6 × 8 map with at least eight blocked cells. Use start (0,0) and goal (5,7). Keep one route open. Update <code>GRID</code>, <code>START</code> and <code>GOAL</code> in <code>navigation.py</code>.</li><li><b>7 minutes:</b> run the planner and simulator. Record the route cost and expansion count. Verify that every move changes exactly one coordinate by one and enters a free cell.</li><li><b>5 minutes:</b> block both neighbors of the start. Record how the planner and simulator respond. Restore the reachable map.</li><li><b>5 minutes:</b> explain g, h and f using one cell in your map, then explain why the controller must turn at a corner.</li></ol>
+<p><b>Submit:</b> your changed map, route/cost output, one unreachable-case output and a short explanation of planning versus control. A screenshot of animation is optional; terminal output is sufficient.</p>
+<p>The included default-map unit test expects cost 9. After changing the map, keep a copy of the original for that test or update its expected cost using an independently checked answer. Do not change an expected result solely to make a failing test pass.</p>
+<h3>Homework — improve and verify</h3>
+<p>Estimated time: 2–3 hours. Submit a ZIP of Python code plus a one-page explanation.</p>
+<ul><li>Build a new map of at least 8 × 8 cells with two possible routes.</li><li>Compare Manhattan A* and h = 0 on exactly the same map. Report path cost and expansions for both.</li><li>Add tests for start = goal, unreachable goal, blocked goal and a valid route. Explain why blocked endpoints produce an error while a valid but unreachable goal returns no route.</li><li>Demonstrate following the route in animation or headless mode.</li><li>Explain two real-world assumptions missing from the simulator.</li><li>If AI helped, include one prompt, one proposed change you checked, and the evidence that it worked or failed.</li></ul>
+<table><tr><th>Assessment</th><th>Weight</th><th>What to look for</th></tr>
+<tr><td>Map and path correctness</td><td>30%</td><td>Valid endpoints, legal moves, correct route cost and unreachable behavior.</td></tr>
+<tr><td>A* explanation</td><td>25%</td><td>Accurate g/h/f, parents and heuristic assumptions.</td></tr>
+<tr><td>Controller understanding</td><td>20%</td><td>Waypoints, heading error, stopping and simulation limits.</td></tr>
+<tr><td>Tests and critical reflection</td><td>25%</td><td>Meaningful tests, search comparison and checked AI contributions if used.</td></tr></table>
+<p><b>Extensions for faster students:</b> add weighted terrain and a suitable lower-bound heuristic; add replanning after a map change while stopped at a cell centre; inflate obstacles to reserve clearance; or add a search-step animation. These extensions are not implemented in this pack.</p>
+<h2>Teacher answers and troubleshooting</h2>
+<h3>Starter solutions</h3>
+<pre>def student_manhattan(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])</pre>
+<pre>def student_neighbors(grid, cell):
+    result = []
+    row, col = cell
+    for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+        nr, nc = row + dr, col + dc
+        if 0 &lt;= nr &lt; len(grid) and 0 &lt;= nc &lt; len(grid[0]):
+            if grid[nr][nc] == 0:
+                result.append((nr, nc))
+    return result</pre>
+<p>The starter grid is assumed nonempty and rectangular; the completed A* implementation validates those properties before searching.</p>
+<h3>Expected answers</h3>
+<ul><li><code>grid[2][1]</code> is the third row, second column.</li><li>Default start neighbors: (1,0) and (0,1). Default start heuristic: 9.</li><li>At (2,2), valid neighbors are (3,2), (2,1), (2,3).</li><li>g = 4 and h = 3 gives f = 7. f is a priority estimate, not a guaranteed final route length.</li><li>Default shortest path costs 9; the 3 × 3 hand-trace path costs 4.</li><li>h ignores walls to give an inexpensive optimistic estimate.</li><li>Parent links recover an ordered path. Expansion order is not the path.</li><li>An exhausted frontier means there is no route under the supplied map and movement rules. Do not move the robot toward an unverified target.</li><li>Changing speed changes traversal time, not the A* route.</li></ul>
+<h3>Common problems</h3>
+<table><tr><th>Symptom</th><th>Check</th></tr>
+<tr><td>ModuleNotFoundError: navigation</td><td>Extract all files together and run from that folder.</td></tr>
+<tr><td>Cannot open graphical display</td><td>Use a desktop Python environment with Tkinter, or add --headless.</td></tr>
+<tr><td>Unexpected map wrapping</td><td>Check nonnegative bounds before grid indexing.</td></tr>
+<tr><td>Different route from your drawing</td><td>Check legality and cost; equal-length routes may differ.</td></tr>
+<tr><td>Path contains walls</td><td>Inspect neighbor filtering and row/column order.</td></tr>
+<tr><td>Robot points the wrong way</td><td>Check radians versus degrees and screen/world y conventions.</td></tr>
+<tr><td>NotImplementedError in student_tasks.py</td><td>Expected until the student fills in both functions.</td></tr>
+<tr><td>No route after editing</td><td>Confirm that obstacles have not disconnected the start or goal.</td></tr></table>
+<h3>Validation supplied with this pack</h3>
+<p>Run <code>python -m unittest -v</code>. Tests cover the default route, identical start/goal, unreachable endpoints, malformed maps, blocked or out-of-bounds endpoints, controller turns and goal arrival. A seeded set of 150 random maps compares A* costs against an independently implemented breadth-first search. This verifies the supplied grid model, not physical robot behavior. GUI operation still needs a classroom desktop check.</p>
+<h3>Further reading</h3>
+<ul><li><a href="https://www.cs.cmu.edu/~15281/coursenotes/search/index.html">Carnegie Mellon University: search algorithms, A* and heuristic properties</a>.</li><li><a href="https://docs.python.org/3/library/heapq.html">Python documentation: heapq priority queues</a>.</li><li><a href="https://docs.python.org/3/library/tkinter.html">Python documentation: Tkinter</a>.</li></ul>
+<p>The lecture notes and examples in this pack are original teaching material. References provide further background.</p>
+</main></html>

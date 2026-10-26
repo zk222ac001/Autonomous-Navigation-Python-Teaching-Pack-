@@ -1,0 +1,57 @@
+AUTONOMOUS NAVIGATION WITH PYTHON — TEACHER PACK
+
+Start by opening Teacher_Guide.html in a browser. It contains three 90-minute
+lecture plans, teaching notes, a worked A* trace, lab tasks and teacher answers.
+Print it from your browser if you prefer paper notes.
+
+Assumptions: students know variables, if statements, loops, lists and functions.
+If not, give an additional 60–90 minute Python preparation session.
+All examples use Python's standard library. No pip packages, API keys or robot
+hardware are needed. Use Python 3.10 or newer.
+
+1. Extract the ZIP to a normal folder (do not run from inside the ZIP).
+2. Open that folder in your editor and open a terminal in it.
+3. Run these commands in order:
+
+   python 01_grid_basics.py
+   python 02_astar_demo.py
+   python 03_robot_simulation.py
+   python 04_compare_search.py
+   python -m unittest -v
+
+Windows: if python is not found, try py instead.
+macOS/Linux: if needed, try python3 instead.
+The graphical simulation requires Tkinter and a desktop display. Check with
+python -m tkinter. If unavailable, use the terminal alternative:
+
+   python 03_robot_simulation.py --headless
+
+This alternative also works in environments without graphical windows.
+Tkinter is an optional component of some Python distributions. Ask your local
+IT support to enable it for classroom PCs if the graphical check fails.
+
+FILES
+navigation.py             Completed A* implementation with comments.
+01_grid_basics.py          First live coding demonstration.
+02_astar_demo.py           Find and print the route.
+controller.py             Ideal turn-then-move robot simulation model.
+03_robot_simulation.py    Animated GUI plus terminal-only mode.
+04_compare_search.py      Compare h=0 with Manhattan distance.
+student_tasks.py          Deliberately unfinished student starter exercises.
+test_navigation.py        Completed automated tests.
+Teacher_Guide.html         Lecture notes, lab, homework, solutions and references.
+
+First demo expected results:
+- Starting heuristic: 9.
+- Default shortest route: 9 moves (10 cells).
+- Simulation final position: x=5.50 m, y=0.50 m.
+Multiple shortest routes can exist. Do not grade an exact list of cells.
+
+Student tasks intentionally raise NotImplementedError until completed.
+Do not run student_tasks.py as a finished demonstration.
+Keep the guide's teacher-answer section until after students attempt the lab.
+
+Scope: static, known grid; four-direction unit-cost movement; ideal point robot;
+perfect simulated position; no sensors, SLAM, wheel commands or real dynamics.
+The displayed robot circle is only a symbol, not a physical collision model.
+Real robots need footprint clearance, localization, feedback and safety systems.
